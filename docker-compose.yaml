@@ -1,0 +1,54 @@
+# nginx proxy address - http://172.17.0.1:8084
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "1"
+
+services:
+  tandoor:
+    image: tandoor/tandoor:latest
+    container_name: tandoor-app
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - tandoor
+    ports:
+      - "8084:8084"
+    environment:
+      TZ: ${TZ:-America/New_York}
+    volumes:
+      - ./rootfs/data/tandoor:/data
+      - ./rootfs/config/tandoor:/config
+    depends_on:
+      - tandoor-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  tandoor-db:
+    image: postgres:16-alpine
+    container_name: tandoor-db
+    restart: unless-stopped
+    logging: *default-logging
+    networks:
+      - tandoor
+    environment:
+      TZ: ${TZ:-America/New_York}
+      POSTGRES_DB: ${DB_CREATE_DATABASE_NAME:-tandoor}
+      POSTGRES_USER: ${DB_USER_NAME:-tandoor}
+      POSTGRES_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
+    volumes:
+      - ./rootfs/db/postgres/tandoor:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  tandoor:
+    external: false
