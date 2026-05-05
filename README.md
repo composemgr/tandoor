@@ -50,9 +50,9 @@ See `docker-compose.yaml` for complete list of configurable options.
 
 ## 📂 Volumes
 
-- `./rootfs/data/tandoor` - Data storage
-- `./rootfs/config/tandoor` - Data storage
-- `./rootfs/data/db/postgres/tandoor` - Data storage
+- `./volumes/data/tandoor` - Data storage
+- `./volumes/config/tandoor` - Data storage
+- `./volumes/data/db/postgres/tandoor` - Data storage
 
 ## 🔐 Security
 
