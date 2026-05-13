@@ -17,6 +17,8 @@ services:
     logging: *default-logging
     networks:
       - tandoor
+      - proxy
+      - cloudflare
     ports:
       - "172.17.0.1:8084:8080"
     environment:
@@ -30,6 +32,8 @@ services:
       POSTGRES_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
       ALLOWED_HOSTS: ${BASE_HOST_NAME:-*}
       GUNICORN_MEDIA: 0
+      CONTAINER_NAME: tandoor-app
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
     volumes:
       - ./volumes/data/tandoor/staticfiles:/opt/recipes/staticfiles
       - ./volumes/data/tandoor/mediafiles:/opt/recipes/mediafiles
@@ -40,6 +44,22 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    labels:
+      - 'traefik.enable=true'
+      - 'cloudflare.enable=true'
+      - 'traefik.docker.network=proxy'
+      - 'cloudflare.service=http://tandoor-app:8080'
+      - 'cloudflare.hostname=tandoor.${CLOUDFLARE_ZONE_NAME:-}'
+      - 'traefik.http.routers.tandoor-app.entrypoints=http'
+      - 'traefik.http.routers.tandoor-app-secure.tls=true'
+      - 'traefik.http.routers.tandoor-app.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.middlewares.tandoor-app-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.tandoor-app.middlewares=tandoor-app-https-redirect'
+      - 'traefik.http.routers.tandoor-app-secure.entrypoints=https'
+      - 'traefik.http.routers.tandoor-app-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
+      - 'traefik.http.routers.tandoor-app-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.tandoor-app-secure.service=tandoor-app'
+      - 'traefik.http.services.tandoor-app.loadbalancer.server.port=8080'
 
   tandoor-db:
     image: postgres:latest
@@ -54,6 +74,7 @@ services:
       POSTGRES_DB: ${DB_CREATE_DATABASE_NAME:-tandoor}
       POSTGRES_USER: ${DB_USER_NAME:-tandoor}
       POSTGRES_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
+      CONTAINER_NAME: tandoor-db
     volumes:
       - ./volumes/data/db/postgres/tandoor:/var/lib/postgresql/data
     healthcheck:
@@ -66,3 +87,7 @@ networks:
   tandoor:
     name: tandoor
     external: false
+  proxy:
+    external: true
+  cloudflare:
+    external: true
