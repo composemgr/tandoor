@@ -1,5 +1,6 @@
 # nginx proxy address - http://172.17.0.1:8084
 
+name: tandoor
 x-logging: &default-logging
   driver: json-file
   options:
@@ -8,31 +9,43 @@ x-logging: &default-logging
 
 services:
   tandoor:
-    image: tandoor/tandoor:latest
+    image: vabene1111/recipes:latest
+    pull_policy: always
     container_name: tandoor-app
-    restart: unless-stopped
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
     logging: *default-logging
     networks:
       - tandoor
     ports:
-      - "8084:8084"
+      - "172.17.0.1:8084:8080"
     environment:
       TZ: ${TZ:-America/New_York}
+      SECRET_KEY: ${APP_SECRET_KEY:-changeme_secret_key_min_32_chars}
+      DB_ENGINE: django.db.backends.postgresql
+      POSTGRES_HOST: tandoor-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${DB_CREATE_DATABASE_NAME:-tandoor}
+      POSTGRES_USER: ${DB_USER_NAME:-tandoor}
+      POSTGRES_PASSWORD: ${DB_USER_PASS:-changeme_db_password}
+      ALLOWED_HOSTS: ${BASE_HOST_NAME:-*}
+      GUNICORN_MEDIA: 0
     volumes:
-      - ./volumes/data/tandoor:/data
-      - ./volumes/config/tandoor:/config
+      - ./volumes/data/tandoor/staticfiles:/opt/recipes/staticfiles
+      - ./volumes/data/tandoor/mediafiles:/opt/recipes/mediafiles
     depends_on:
       - tandoor-db
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   tandoor-db:
-    image: postgres:16-alpine
+    image: postgres:latest
+    pull_policy: always
     container_name: tandoor-db
-    restart: unless-stopped
+    restart: always
     logging: *default-logging
     networks:
       - tandoor
@@ -51,4 +64,5 @@ services:
 
 networks:
   tandoor:
+    name: tandoor
     external: false
